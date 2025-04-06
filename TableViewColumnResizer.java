@@ -49,21 +49,43 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Automatically resizes TableView columns proportionally, respecting constraints and scrollbar.
+ * Automatically resizes the columns of a JavaFX TableView to proportionally fill the
+ * available horizontal space, while respecting column minimum and maximum widths.
+ * It correctly accounts for the vertical scrollbar's width when it becomes visible.
  * <p>
- * Use {@link #install(TableView)} to attach. Sets {@link TableView#UNCONSTRAINED_RESIZE_POLICY}.
- * Operates via listeners, potentially causing a brief initial visual adjustment.
+ * Use the static {@link #install(TableView)} method to attach this behavior to a TableView.
+ * This method automatically sets the TableView's column resize policy to
+ * {@link TableView#UNCONSTRAINED_RESIZE_POLICY}, which is required for the resizer
+ * to function correctly.
  * <p>
- * **Logging:** Uses SLF4j. Logging can be globally enabled/disabled via the static
- * {@link #isLoggingEnabled} flag. It uses level checks (e.g., {@code log.isDebugEnabled()})
- * for efficiency ("lazy logging"), avoiding message creation if the level is disabled
- * or the global flag is false. A suitable SLF4j binding must be on the classpath at runtime.
+ * The resizer operates automatically by listening to changes in the TableView's width,
+ * visible columns, and the vertical scrollbar's state. Due to JavaFX layout timing,
+ * there might be a brief visual adjustment (flicker) upon initial display or when the
+ * scrollbar appears/disappears, as the resize calculation is triggered *after*
+ * the state change is detected by the listeners.
  * <p>
- * **Efficiency:** Balances accuracy with performance using debouncing, minimized lookups,
- * and conditional width application. Logic is O(n) based on visible columns.
+ * **Logging:** Uses SLF4j for internal logging. Logging output can be globally
+ * enabled or disabled for all instances via the static {@link #isLoggingEnabled} flag
+ * (defaults to {@code true}). For efficiency ("lazy logging"), log messages are only
+ * constructed and output if both this flag is {@code true} AND the corresponding
+ * logging level (e.g., DEBUG, INFO, WARN) is enabled in the configured SLF4j binding.
+ * A suitable SLF4j binding (e.g., slf4j-simple, logback-classic) must be present
+ * on the classpath at runtime to see log output.
  * <p>
- * Includes {@link #forceResizeColumns()} for explicit triggering (usually not needed).
- * Manages listener lifecycle via the TableView's scene property.
+ * **Efficiency Considerations:** Care has been taken in the implementation to balance
+ * accurate resizing with performance. Key efficiency measures include:
+ * <ul>
+ *     <li>Debouncing reactions to rapid table width changes.</li>
+ *     <li>Minimizing potentially expensive node lookups.</li>
+ *     <li>Conditional application of calculated preferred widths to reduce layout invalidations.</li>
+ *     <li>Using logging level checks to avoid unnecessary work when logging is disabled.</li>
+ * </ul>
+ * The calculation logic is O(n) based on the number of visible columns.
+ * <p>
+ * While resizing is automatic, {@link #forceResizeColumns()} allows explicit triggering,
+ * though it is **generally not necessary**.
+ * <p>
+ * The resizer manages its listener lifecycle based on the TableView's scene presence.
  *
  * @param <T> The type of the items contained within the TableView.
  */
@@ -97,9 +119,21 @@ public final class TableViewColumnResizer<T> {
     private ChangeListener<Number> scrollbarWidthListener = null;
     private final ChangeListener<Scene> sceneListener;
 
-    /**
-     * Private constructor. Use the static install method.
-     */
+	/**
+	 * Installs the automatic column resizing behavior onto the given TableView and returns the created resizer instance.
+	 * <p>
+	 * **Important:** This method sets the {@code TableView}'s column resize policy to {@link TableView#UNCONSTRAINED_RESIZE_POLICY}. This policy is necessary to allow a horizontal
+	 * scrollbar to appear when the sum of minimum column widths exceeds the available table width, which is essential for this resizer's logic.
+	 * </p>
+	 * The returned instance primarily provides the public method {@link #forceResizeColumns()} to allow explicitly triggering a resize calculation, for example, after
+	 * programmatically changing table data or column properties. Otherwise, the resizer manages its core listeners and resizing automatically based on scene changes and relevant
+	 * property updates.
+	 *
+	 * @param <S>       The type of the items contained within the TableView.
+	 * @param tableView The TableView to install the resizer onto. Must not be null.
+	 * @return The created {@code TableViewColumnResizer} instance, mainly for calling {@code forceResizeColumns()}.
+	 * @throws NullPointerException if tableView is null.
+	 */
     private TableViewColumnResizer(TableView<T> tableView) {
         this.tableView = Objects.requireNonNull(tableView, "TableView cannot be null.");
 
