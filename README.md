@@ -63,4 +63,4 @@ Developed in Mecklenburg-Vorpommern, Germany.
 
 ## Issues / Contributing
 
-Please report any bugs or suggest features via the [GitHub Issues](https://github.com/[YOUR_USERNAME]/[REPOSITORY_NAME]/issues) page for this repository. (Replace placeholders!)
+Please report any bugs or suggest features via the [GitHub Issues](https://github.com/HenrykZschuppan/TableViewColumnResizer/issues) page for this repository.
