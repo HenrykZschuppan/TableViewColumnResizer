@@ -1,6 +1,7 @@
 # JavaFX TableView Column Resizer
 
-A JavaFX utility that automatically resizes `TableView` columns proportionally to fill available width. It respects column `minWidth`/`maxWidth` and correctly accounts for the vertical scrollbar, addressing limitations of standard JavaFX resize policies (like unwanted empty space or content overflow).
+A JavaFX utility that automatically resizes visible leaf columns in a `TableView` proportionally to fill available width. It respects column `minWidth`/`maxWidth` and correctly accounts for the vertical scrollbar, addressing limitations of standard JavaFX resize policies (like unwanted empty space or content overflow).
+(Note: Currently designed for `TableView` only, not `TreeTableView`).
 
 ## Usage
 
