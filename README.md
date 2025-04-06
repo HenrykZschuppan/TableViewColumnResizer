@@ -44,7 +44,7 @@ Standard JavaFX `TableView` column resize policies have limitations:
 
 This utility aims to provide the best of both worlds: fill available space when possible, but allow scrolling when minimum widths demand it.
 
-## How it Works
+## How it Works Internally
 
 `TableViewColumnResizer` works by:
 
@@ -55,7 +55,9 @@ This utility aims to provide the best of both worlds: fill available space when 
 5.  **Efficiency:** It uses debouncing for table width changes to avoid excessive calculations during window resizing and only applies width changes if they exceed a small threshold.
 6.  **Lifecycle Management:** It automatically attaches/detaches its listeners when the `TableView` is added to/removed from a scene to prevent memory leaks.
 
-**Note on Initial Display:** Due to JavaFX layout timing, there might be a brief visual adjustment ("flicker") when the `TableView` is first displayed or when the vertical scrollbar appears/disappears. This happens because the resize calculation is triggered by listeners *after* the scrollbar's state change is fully processed by the layout system.
+**Note on Initial Scrollbar Detection:** The calculation accurately accounts for the vertical scrollbar. However, the visibility and final width of the scrollbar are determined by the JavaFX layout system based on the `TableView`'s content and available height. Since the `TableView` is often populated with data *after* the initial scene display, the scrollbar might not be visible or have its final dimensions immediately when the resizer performs its first checks.
+
+This resizer addresses this by using internal listeners (`visibleProperty`, `widthProperty`) attached to the scrollbar. These listeners ensure that the column widths are correctly recalculated **as soon as** the layout system updates the scrollbar's state after the table is populated or resized. While this process relies on the standard layout and event timing, the listener-based approach ensures the layout eventually reflects the correct scrollbar state for accurate column sizing.
 
 ## License
 
