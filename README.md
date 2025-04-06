@@ -1,8 +1,38 @@
 # JavaFX TableView Column Resizer
 
-A utility class for JavaFX `TableView` that automatically resizes visible columns proportionally to fill the available horizontal space. It respects column minimum and maximum widths and correctly accounts for the vertical scrollbar's width.
+A JavaFX utility that automatically resizes `TableView` columns proportionally to fill available width. It respects column `minWidth`/`maxWidth` and correctly accounts for the vertical scrollbar, addressing limitations of standard JavaFX resize policies (like unwanted empty space or content overflow).
 
-## The Problem
+## Usage
+
+1.  **Policy Requirement:** This resizer requires the `TableView`'s column resize policy set to `TableView.UNCONSTRAINED_RESIZE_POLICY`. The `install` method handles this automatically.
+2.  **Installation:** Call the static `install` method after creating your `TableView`:
+
+    ```java
+    import izon.framework.tableview.TableViewColumnResizer; // Adjust import path if needed
+    import javafx.scene.control.TableView;
+
+    // ... inside your controller or setup code ...
+
+    TableView<MyDataType> myTableView = new TableView<>();
+    // ... configure your TableView and columns ...
+
+    // Install the resizer (it manages itself)
+    TableViewColumnResizer.install(myTableView);
+
+    // Optionally keep the instance if you need forceResizeColumns() later
+    // TableViewColumnResizer<MyDataType> resizer = TableViewColumnResizer.install(myTableView);
+    ```
+
+## Public Methods
+
+*   **`static install(TableView<T> tableView)`:** Installs the resizer onto the TableView and sets the required `UNCONSTRAINED_RESIZE_POLICY`. Returns the resizer instance.
+*   **`forceResizeColumns()`:** Explicitly triggers a resize calculation. **This is generally not needed** as the resizing is handled automatically by internal listeners. It might be considered in edge cases after complex programmatic changes to the table where listeners might not immediately reflect the desired state.
+
+## Configuration
+
+*   **`HORIZONTAL_PADDING_BUFFER`:** Inside the `TableViewColumnResizer.java` source code, there's a constant `HORIZONTAL_PADDING_BUFFER` (defaulting to `4.0`). This small buffer helps prevent the horizontal scrollbar from appearing due to tiny calculation overflows or internal TableView spacing/borders not covered by `getInsets()`. If you still see an unnecessary horizontal scrollbar with minimal overflow, you might need to slightly adjust this value in the source code based on your specific application's styling.
+
+## The Problem with Standard Policies
 
 Standard JavaFX `TableView` column resize policies have limitations:
 
@@ -23,36 +53,6 @@ This utility aims to provide the best of both worlds: fill available space when 
 6.  **Lifecycle Management:** It automatically attaches/detaches its listeners when the `TableView` is added to/removed from a scene to prevent memory leaks.
 
 **Note on Initial Display:** Due to JavaFX layout timing, there might be a brief visual adjustment ("flicker") when the `TableView` is first displayed or when the vertical scrollbar appears/disappears. This happens because the resize calculation is triggered by listeners *after* the scrollbar's state change is fully processed by the layout system.
-
-## Usage
-
-1.  **Requirement:** This resizer requires the `TableView`'s column resize policy to be set to `TableView.UNCONSTRAINED_RESIZE_POLICY`. The `install` method handles this automatically.
-2.  **Installation:** Simply call the static `install` method after your `TableView` instance is created:
-
-    ```java
-    import izon.framework.tableview.TableViewColumnResizer; // Adjust import path if needed
-    import javafx.scene.control.TableView;
-
-    // ... inside your controller or setup code ...
-
-    TableView<MyDataType> myTableView = new TableView<>();
-    // ... configure your TableView and columns ...
-
-    // Install the resizer
-    TableViewColumnResizer.install(myTableView);
-
-    // You can optionally store the returned instance if you need to call forceResizeColumns()
-    // TableViewColumnResizer<MyDataType> resizer = TableViewColumnResizer.install(myTableView);
-    ```
-
-## Public Methods
-
-*   **`static install(TableView<T> tableView)`:** Installs the resizer onto the TableView and sets the required `UNCONSTRAINED_RESIZE_POLICY`. Returns the resizer instance.
-*   **`forceResizeColumns()`:** Explicitly triggers a resize calculation. **This is generally not needed** as the resizing is handled automatically by internal listeners. It might be considered in edge cases after complex programmatic changes to the table where listeners might not immediately reflect the desired state.
-
-## Configuration
-
-*   **`HORIZONTAL_PADDING_BUFFER`:** Inside the `TableViewColumnResizer.java` source code, there's a constant `HORIZONTAL_PADDING_BUFFER` (defaulting to `4.0`). This small buffer helps prevent the horizontal scrollbar from appearing due to tiny calculation overflows or internal TableView spacing/borders not covered by `getInsets()`. If you still see an unnecessary horizontal scrollbar with minimal overflow, you might need to slightly adjust this value in the source code based on your specific application's styling.
 
 ## License
 
