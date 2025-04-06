@@ -59,6 +59,8 @@ This utility aims to provide the best of both worlds: fill available space when 
 This code is released under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 
 Copyright (c) 2025 Henryk Daniel Zschuppan
+
+Location:
 Developed in Mecklenburg-Vorpommern, Germany.
 
 ## Issues / Contributing
