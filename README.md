@@ -4,7 +4,8 @@ A JavaFX utility that automatically resizes `TableView` columns proportionally t
 
 ## Usage
 
-1.  **Policy Requirement:** This resizer requires the `TableView`'s column resize policy set to `TableView.UNCONSTRAINED_RESIZE_POLICY`. The `install` method handles this automatically.
+1.  **Policy Requirement:** This resizer requires the `TableView`'s column resize policy set to `TableView.UNCONSTRAINED_RESIZE_POLICY`.
+    The `install` method handles this automatically.
 2.  **Installation:** Call the static `install` method after creating your `TableView`:
 
     ```java
