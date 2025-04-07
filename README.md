@@ -73,12 +73,12 @@ By default, the resizer doesn't subtracts a padding (`0.0` pixels) from the avai
 
 Use the overloaded `install` method to provide a custom buffer value:
 
-`java
-// Install the resizer WITHOUT an additional buffer (only insets are considered)
-TableViewColumnResizer.install(myDataTable, 0.0);
+`java`
+`// Install the resizer WITHOUT an additional buffer (only insets are considered)
+TableViewColumnResizer.install(myDataTable, 0.0);`
 
-// Install the resizer with a buffer of 1.0 pixel
-TableViewColumnResizer.install(myDataTable, 1.0);
+`// Install the resizer with a buffer of 1.0 pixel
+TableViewColumnResizer.install(myDataTable, 1.0);`
 
 **Recommendation:** Start with the default installation (`TableViewColumnResizer.install(myDataTable);`). Only adjust the buffer if you encounter the visual issues mentioned above. `0.0` is often a good value if you precisely control borders via CSS.
 
