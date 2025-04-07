@@ -98,15 +98,6 @@ TableViewColumnResizer.install(myDataTable, 1.0);
 *   **`static install(TableView<T> tableView)`:** Installs the resizer onto the TableView and sets the required `UNCONSTRAINED_RESIZE_POLICY`. Returns the resizer instance.
 *   **`forceResizeColumns()`:** Explicitly triggers a resize calculation. **This is generally not needed** as the resizing is handled automatically by internal listeners. It might be considered in edge cases after complex programmatic changes to the table where listeners might not immediately reflect the desired state.
 
-## The Problem with Standard Policies
-
-Standard JavaFX `TableView` column resize policies have limitations:
-
-*   **`CONSTRAINED_RESIZE_POLICY`:** Fills the available width but prevents the horizontal scrollbar from appearing, even if the sum of minimum column widths exceeds the table width. This can lead to hidden content or columns being squeezed below their minimum size.
-*   **`UNCONSTRAINED_RESIZE_POLICY` (Default):** Allows the horizontal scrollbar to appear correctly when content overflows but does *not* automatically resize columns to fill available space if they are narrower than the table width, leaving empty space on the right.
-
-This utility aims to provide the best of both worlds: fill available space when possible, but allow scrolling when minimum widths demand it.
-
 ## How it Works Internally
 
 `TableViewColumnResizer` works by:
