@@ -678,7 +678,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 			}
 			appliedTotalWidth += col.getPrefWidth(); // Use actual prefWidth after potential set for sum
 		}
-		log.debug("Applied Calculated Total PrefWidth: {}", appliedTotalWidth); // fine -> debug, use {}
+		log.debug("Applied Calculated Total PrefWidth: {}", appliedTotalWidth);
 	}
 
 	/**
@@ -686,7 +686,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 	 * event (e.g., programmatically changing column visibility or after manually setting table items) requires an immediate layout update.
 	 */
 	public void forceResizeColumns() {
-		log.debug("forceResizeColumns() called externally."); // fine -> debug
+		log.debug("forceResizeColumns() called externally.");
 		// Stop any pending actions from the width debounce timer
 		resizeDebounceTimer.stop();
 		// Execute the resize logic immediately
