@@ -113,7 +113,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 
     /**
      * Installs the automatic column resizing behavior onto the given TableView
-     * using the default horizontal padding buffer ({@value #DEFAULT_HORIZONTAL_PADDING_BUFFER}px).
+     * using the default horizontal padding of 0px.
      *
      * @param <S>       The type of the items contained within the TableView.
      * @param tableView The TableView to install the resizer onto. Must not be null.
