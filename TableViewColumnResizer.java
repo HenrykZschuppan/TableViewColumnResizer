@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Henryk Daniel Zschuppan, Mecklenburg-Vorpommern, Germany
+ * Copyright (c) April 2025 Henryk Daniel Zschuppan
  *
  * Developed in Mecklenburg-Vorpommern, Germany.
  *
