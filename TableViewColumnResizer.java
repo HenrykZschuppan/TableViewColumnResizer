@@ -78,37 +78,66 @@ import javafx.util.Duration;
  */
 public final class TableViewColumnResizer<T> {
 
-	// SLF4J Logger instance
-	private static final Logger log = LoggerFactory.getLogger(TableViewColumnResizer.class);
+// SLF4J Logger instance
+private static final Logger log = LoggerFactory.getLogger(TableViewColumnResizer.class);
 
-	/**
-	 * Installs the automatic column resizing behavior onto the given TableView and returns the created resizer instance.
-	 * <p>
-	 * **Important:** This method sets the {@code TableView}'s column resize policy to {@link TableView#UNCONSTRAINED_RESIZE_POLICY}. This policy is necessary to allow a horizontal
-	 * scrollbar to appear when the sum of minimum column widths exceeds the available table width, which is essential for this resizer's logic.
-	 * </p>
-	 * The returned instance primarily provides the public method {@link #forceResizeColumns()} to allow explicitly triggering a resize calculation, for example, after
-	 * programmatically changing table data or column properties. Otherwise, the resizer manages its core listeners and resizing automatically based on scene changes and relevant
-	 * property updates.
-	 *
-	 * @param <S>       The type of the items contained within the TableView.
-	 * @param tableView The TableView to install the resizer onto. Must not be null.
-	 * @return The created {@code TableViewColumnResizer} instance, mainly for calling {@code forceResizeColumns()}.
-	 * @throws NullPointerException if tableView is null.
-	 */
-	public static <S> TableViewColumnResizer<S> install(TableView<S> tableView) {
-		Objects.requireNonNull(tableView, "TableView cannot be null for installing Resizer.");
+// Default padding buffer value
+private static final double DEFAULT_HORIZONTAL_PADDING_BUFFER = 0.0;
+// constants
+private static final Duration RESIZE_DEBOUNCE_DELAY            = Duration.millis(60);
+private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 
-		if (tableView.getColumnResizePolicy() != TableView.UNCONSTRAINED_RESIZE_POLICY) {
-			log.info("Setting TableView columnResizePolicy to UNCONSTRAINED_RESIZE_POLICY for TableViewColumnResizer.");
-			tableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
-		}
+    // --- Static Install Methods ---
 
-		log.debug("TableViewColumnResizer installing on TableView..."); // Changed from fine to debug
-		TableViewColumnResizer<S> resizer = new TableViewColumnResizer<>(tableView);
-		log.debug("TableViewColumnResizer installation complete."); // Changed from fine to debug
-		return resizer; // Return the created instance
-	}
+    /**
+     * Installs the automatic column resizing behavior onto the given TableView
+     * using the default horizontal padding buffer ({@value #DEFAULT_HORIZONTAL_PADDING_BUFFER}px).
+     *
+     * @param <S>       The type of the items contained within the TableView.
+     * @param tableView The TableView to install the resizer onto. Must not be null.
+     * @return The created {@code TableViewColumnResizer} instance.
+     * @throws NullPointerException if tableView is null.
+     * @see #install(TableView, double)
+     */
+    public static <S> TableViewColumnResizer<S> install(TableView<S> tableView) {
+        return install(tableView, DEFAULT_HORIZONTAL_PADDING_BUFFER);
+    }
+
+    /**
+     * Installs the automatic column resizing behavior onto the given TableView
+     * with a specific horizontal padding buffer.
+     * <p>
+     * The {@code horizontalPaddingBuffer} is a small value (in pixels) subtracted
+     * from the available width after accounting for table insets and the vertical
+     * scrollbar. It acts as a safety margin for CSS borders or minor layout
+     * inaccuracies. A value of 0 relies solely on table insets.
+     * </p>
+     *
+     * @param <S>                     The type of the items contained within the TableView.
+     * @param tableView               The TableView to install the resizer onto. Must not be null.
+     * @param horizontalPaddingBuffer The horizontal buffer value to use (e.g., 2.0, 1.0, 0.0).
+     * @return The created {@code TableViewColumnResizer} instance.
+     * @throws NullPointerException if tableView is null.
+     */
+    public static <S> TableViewColumnResizer<S> install(TableView<S> tableView, double horizontalPaddingBuffer) {
+        Objects.requireNonNull(tableView, "TableView cannot be null for installing Resizer.");
+        // Ensure non-negative buffer? Or allow negative for specific edge cases? Usually non-negative.
+        if (horizontalPaddingBuffer < 0) {
+             log.warn("Negative horizontalPaddingBuffer ({}) provided. Using 0 instead.", horizontalPaddingBuffer);
+             horizontalPaddingBuffer = 0;
+        }
+
+
+        if (tableView.getColumnResizePolicy() != TableView.UNCONSTRAINED_RESIZE_POLICY) {
+            log.info("Setting TableView columnResizePolicy to UNCONSTRAINED_RESIZE_POLICY for TableViewColumnResizer.");
+            tableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        }
+
+        log.debug("TableViewColumnResizer installing on TableView with buffer: {}", horizontalPaddingBuffer);
+        TableViewColumnResizer<S> resizer = new TableViewColumnResizer<>(tableView, horizontalPaddingBuffer);
+        log.debug("TableViewColumnResizer installation complete.");
+        return resizer;
+    }
 
 	// Removed: public static boolean isLoggingEnabled = true; (Control via SLF4J config)
 
@@ -117,11 +146,8 @@ public final class TableViewColumnResizer<T> {
 	private boolean            isResizingInternally = false;
 	private boolean            listenersAttached    = false; // Prevents adding listeners multiple times
 
-	// Timers and constants
+	// Timer
 	private final PauseTransition resizeDebounceTimer;
-	private static final Duration RESIZE_DEBOUNCE_DELAY            = Duration.millis(60);
-	private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
-	private static final double   HORIZONTAL_PADDING_BUFFER        = 0;  // fine tune this manually, for example if border width is 1 times 2 = 2
 
 	// --- Listener instances (needed for removal) ---
 	private final ChangeListener<Number>                widthListener;
@@ -131,13 +157,17 @@ public final class TableViewColumnResizer<T> {
 	// Listener for scene changes to manage attachment/detachment
 	private final ChangeListener<Scene> sceneListener;
 
+	// Instance variable to hold the buffer for this specific instance
+	private final double horizontalPaddingBuffer;
+
 	/**
 	 * Private constructor to prevent direct instantiation. Use the static install method.
 	 *
 	 * @param tableView The TableView to manage.
 	 */
-	private TableViewColumnResizer(TableView<T> tableView) {
-		this.tableView = Objects.requireNonNull(tableView, "TableView cannot be null.");
+	 private TableViewColumnResizer(TableView<T> tableView, double horizontalPaddingBuffer) {
+        	this.tableView = Objects.requireNonNull(tableView, "TableView cannot be null.");
+        	this.horizontalPaddingBuffer = horizontalPaddingBuffer; // Store the buffer
 
 		// Initialize debounce timer
 		this.resizeDebounceTimer = new PauseTransition(RESIZE_DEBOUNCE_DELAY);
@@ -322,7 +352,7 @@ public final class TableViewColumnResizer<T> {
 			// Calculate available space
 			double tableWidth = tableView.getWidth();
 			Insets tableInsets = tableView.getInsets();
-			double horizontalPadding = tableInsets.getLeft() + tableInsets.getRight() + HORIZONTAL_PADDING_BUFFER;
+			double horizontalPadding = tableInsets.getLeft() + tableInsets.getRight() + this.horizontalPaddingBuffer;
 			double effectiveScrollBarWidth = 0;
 			if (verticalScrollBar != null && verticalScrollBar.isVisible()) {
 				double currentWidth = verticalScrollBar.getWidth();
