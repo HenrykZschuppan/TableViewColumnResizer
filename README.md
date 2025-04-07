@@ -67,8 +67,8 @@ By default, the resizer doesn't subtracts a padding (`0.0` pixels) from the avai
 **When to Adjust:**
 
 *   You observe a **small, consistent gap** to the right of the last column.
-*   A **horizontal scrollbar appears unnecessarily**, even though everything should fit.
-*   
+*   A **horizontal scrollbar appears unnecessarily**, even though everything should fit.  
+   
 **How to Adjust:**
 
 Use the overloaded `install` method to provide a custom buffer value:
