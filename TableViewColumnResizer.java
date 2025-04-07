@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Henryk Daniel Zschuppan
+ * Copyright (c) 2025 Henryk Daniel Zschuppan, Mecklenburg-Vorpommern, Germany
  *
  * Developed in Mecklenburg-Vorpommern, Germany.
  *
@@ -24,9 +24,14 @@
  * SOFTWARE.
  */
 
-package izon.framework.tableview; // Adjust package name if necessary
+package izon.framework.tableview;
 
-// SLF4j Imports
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+// SLF4J imports
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,80 +49,37 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.util.Duration;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
 /**
- * Automatically resizes the columns of a JavaFX TableView to proportionally fill the
- * available horizontal space, while respecting column minimum and maximum widths.
- * It correctly accounts for the vertical scrollbar's width when it becomes visible.
+ * Automatically resizes the columns of a JavaFX TableView to proportionally fill the available horizontal space, while respecting column minimum and maximum widths. It correctly
+ * accounts for the vertical scrollbar's width when it becomes visible. This implementation uses SLF4J for logging.
  * <p>
- * Use the static {@link #install(TableView)} method to attach this behavior to a TableView.
- * This method automatically sets the TableView's column resize policy to
- * {@link TableView#UNCONSTRAINED_RESIZE_POLICY}, which is required for the resizer
- * to function correctly.
+ * Use the static {@link #install(TableView)} method to attach this behavior to a TableView. This method automatically sets the TableView's column resize policy to
+ * {@link TableView#UNCONSTRAINED_RESIZE_POLICY}, which is required for the resizer to function correctly.
  * <p>
- * The resizer operates automatically by listening to changes in the TableView's width,
- * visible columns, and the vertical scrollbar's state. Due to JavaFX layout timing,
- * there might be a brief visual adjustment (flicker) upon initial display or when the
- * scrollbar appears/disappears, as the resize calculation is triggered *after*
- * the state change is detected by the listeners.
+ * The resizer operates automatically by listening to changes in the TableView's width, visible columns, and the vertical scrollbar's state. Due to JavaFX layout timing, there
+ * might be a brief visual adjustment (flicker) upon initial display or when the scrollbar appears/disappears, as the resize calculation is triggered *after* the state change is
+ * detected by the listeners.
  * <p>
- * **Logging:** Uses SLF4j for internal logging. Logging output can be globally
- * enabled or disabled for all instances via the static {@link #isLoggingEnabled} flag
- * (defaults to {@code true}). For efficiency ("lazy logging"), log messages are only
- * constructed and output if both this flag is {@code true} AND the corresponding
- * logging level (e.g., DEBUG, INFO, WARN) is enabled in the configured SLF4j binding.
- * A suitable SLF4j binding (e.g., slf4j-simple, logback-classic) must be present
- * on the classpath at runtime to see log output.
- * <p>
- * **Efficiency Considerations:** Care has been taken in the implementation to balance
- * accurate resizing with performance. Key efficiency measures include:
+ * **Efficiency Considerations:** Care has been taken in the implementation to balance accurate resizing with performance. Key efficiency measures include:
  * <ul>
- *     <li>Debouncing reactions to rapid table width changes.</li>
- *     <li>Minimizing potentially expensive node lookups.</li>
- *     <li>Conditional application of calculated preferred widths to reduce layout invalidations.</li>
- *     <li>Using logging level checks to avoid unnecessary work when logging is disabled.</li>
+ * <li>Debouncing reactions to rapid table width changes to avoid excessive calculations during window resizing.</li>
+ * <li>Minimizing potentially expensive operations like node lookups for the scrollbar.</li>
+ * <li>Applying calculated preferred widths to columns only when a significant change (> 0.5px) is detected, reducing unnecessary layout invalidations.</li>
  * </ul>
- * The calculation logic is O(n) based on the number of visible columns.
+ * The calculation logic primarily involves linear traversals of the visible columns, representing an efficient approach for typical UI scenarios where the number of columns is
+ * moderate.
  * <p>
- * While resizing is automatic, {@link #forceResizeColumns()} allows explicit triggering,
- * though it is **generally not necessary**.
+ * While the resizing is typically fully automatic, a public method {@link #forceResizeColumns()} is provided. This allows for explicitly triggering a resize calculation but is
+ * **generally not necessary** due to the comprehensive automatic listeners. See the method's documentation for potential use cases.
  * <p>
- * The resizer manages its listener lifecycle based on the TableView's scene presence.
+ * The resizer manages its own lifecycle by attaching/detaching listeners when the TableView is added to or removed from a scene to prevent memory leaks.
  *
  * @param <T> The type of the items contained within the TableView.
  */
 public final class TableViewColumnResizer<T> {
 
-    // SLF4j Logger
-    private static final Logger log = LoggerFactory.getLogger(TableViewColumnResizer.class);
-
-    /**
-     * Global flag to enable or disable logging for all instances of TableViewColumnResizer.
-     * Defaults to {@code true} for easier debugging during development. Set to {@code false}
-     * in production environments if detailed internal logging is not desired.
-     * Works in conjunction with the configured SLF4j logging levels.
-     */
-    public static boolean isLoggingEnabled = true;
-
-    // --- Member variables ---
-    private final TableView<T> tableView;
-    private ScrollBar verticalScrollBar = null;
-    private boolean isResizingInternally = false;
-    private boolean listenersAttached = false;
-
-    private final PauseTransition resizeDebounceTimer;
-    private static final Duration RESIZE_DEBOUNCE_DELAY = Duration.millis(60);
-    private static final double DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
-    private static final double HORIZONTAL_PADDING_BUFFER = 4.5;
-
-    private final ChangeListener<Number> widthListener;
-    private final ListChangeListener<TableColumn<T, ?>> visibleColumnsListener;
-    private ChangeListener<Boolean> scrollbarVisibleListener = null;
-    private ChangeListener<Number> scrollbarWidthListener = null;
-    private final ChangeListener<Scene> sceneListener;
+	// SLF4J Logger instance
+	private static final Logger log = LoggerFactory.getLogger(TableViewColumnResizer.class);
 
 	/**
 	 * Installs the automatic column resizing behavior onto the given TableView and returns the created resizer instance.
@@ -134,277 +96,559 @@ public final class TableViewColumnResizer<T> {
 	 * @return The created {@code TableViewColumnResizer} instance, mainly for calling {@code forceResizeColumns()}.
 	 * @throws NullPointerException if tableView is null.
 	 */
-    private TableViewColumnResizer(TableView<T> tableView) {
-        this.tableView = Objects.requireNonNull(tableView, "TableView cannot be null.");
+	public static <S> TableViewColumnResizer<S> install(TableView<S> tableView) {
+		Objects.requireNonNull(tableView, "TableView cannot be null for installing Resizer.");
 
-        this.resizeDebounceTimer = new PauseTransition(RESIZE_DEBOUNCE_DELAY);
-        this.resizeDebounceTimer.setOnFinished(event -> {
-             if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Resize debounce timer finished. Calling internal resize.");
-             resizeColumnsInternal();
-         });
+		if (tableView.getColumnResizePolicy() != TableView.UNCONSTRAINED_RESIZE_POLICY) {
+			log.info("Setting TableView columnResizePolicy to UNCONSTRAINED_RESIZE_POLICY for TableViewColumnResizer.");
+			tableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+		}
 
-        // Define listeners
-        this.widthListener = (obs, ov, nv) -> resizeDebounceTimer.playFromStart();
+		log.debug("TableViewColumnResizer installing on TableView..."); // Changed from fine to debug
+		TableViewColumnResizer<S> resizer = new TableViewColumnResizer<>(tableView);
+		log.debug("TableViewColumnResizer installation complete."); // Changed from fine to debug
+		return resizer; // Return the created instance
+	}
 
-        this.visibleColumnsListener = c -> {
-            boolean changeRequiresResize = false;
-            while (c.next()) {
-                if (c.wasAdded() || c.wasRemoved() || c.wasUpdated()) { changeRequiresResize = true; break; }
-            }
-            if (changeRequiresResize) {
-                 if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Visible columns changed. Triggering instant resize.");
-                resizeDebounceTimer.stop();
-                resizeColumnsInternal();
-            }
-        };
+	// Removed: public static boolean isLoggingEnabled = true; (Control via SLF4J config)
 
-        this.sceneListener = (obs, oldScene, newScene) -> {
-            if (oldScene != null) {
-                if (isLoggingEnabled && log.isDebugEnabled()) log.debug("TableView removed from scene. Detaching listeners.");
-                detachListeners();
-            }
-            if (newScene != null) {
-                if (isLoggingEnabled && log.isDebugEnabled()) log.debug("TableView added to scene. Attaching listeners.");
-                findVerticalScrollBar();
-                attachListeners();
-                Platform.runLater(this::resizeColumnsInternal);
-            }
-        };
+	private final TableView<T> tableView;
+	private ScrollBar          verticalScrollBar    = null;
+	private boolean            isResizingInternally = false;
+	private boolean            listenersAttached    = false; // Prevents adding listeners multiple times
 
-        // Initial setup
-        if (tableView.getScene() != null) {
-             if (isLoggingEnabled && log.isDebugEnabled()) log.debug("TableView already in scene. Attaching listeners.");
-             findVerticalScrollBar();
-             attachListeners();
-             Platform.runLater(this::resizeColumnsInternal);
-        }
-        tableView.sceneProperty().addListener(this.sceneListener);
-    }
+	// Timers and constants
+	private final PauseTransition resizeDebounceTimer;
+	private static final Duration RESIZE_DEBOUNCE_DELAY            = Duration.millis(60);
+	private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
+	private static final double   HORIZONTAL_PADDING_BUFFER        = 3;
 
-    /**
-     * Installs the resizer onto the TableView. Sets UNCONSTRAINED_RESIZE_POLICY.
-     * @param <S> Table item type.
-     * @param tableView The target TableView.
-     * @return The resizer instance (mainly for calling forceResizeColumns).
-     */
-    public static <S> TableViewColumnResizer<S> install(TableView<S> tableView) {
-        Objects.requireNonNull(tableView, "TableView cannot be null for installing Resizer.");
-        if (tableView.getColumnResizePolicy() != TableView.UNCONSTRAINED_RESIZE_POLICY) {
-             // Use standard check for info level
-             if (isLoggingEnabled && log.isInfoEnabled()) log.info("Setting TableView columnResizePolicy to UNCONSTRAINED_RESIZE_POLICY for TableViewColumnResizer.");
-            tableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
-        }
-        if (isLoggingEnabled && log.isDebugEnabled()) log.debug("TableViewColumnResizer installing on TableView...");
-        TableViewColumnResizer<S> resizer = new TableViewColumnResizer<>(tableView);
-         if (isLoggingEnabled && log.isInfoEnabled()) log.info("TableViewColumnResizer installation complete.");
-        return resizer;
-    }
+	// --- Listener instances (needed for removal) ---
+	private final ChangeListener<Number>                widthListener;
+	private final ListChangeListener<TableColumn<T, ?>> visibleColumnsListener;
+	private ChangeListener<Boolean>                     scrollbarVisibleListener = null; // Initialized later
+	private ChangeListener<Number>                      scrollbarWidthListener   = null; // Initialized later
+	// Listener for scene changes to manage attachment/detachment
+	private final ChangeListener<Scene> sceneListener;
 
-    private void attachListeners() {
-        tableView.widthProperty().removeListener(widthListener);
-        tableView.widthProperty().addListener(widthListener);
-        tableView.getVisibleLeafColumns().removeListener(visibleColumnsListener);
-        tableView.getVisibleLeafColumns().addListener(visibleColumnsListener);
-        attachScrollBarListeners();
-    }
+	/**
+	 * Private constructor to prevent direct instantiation. Use the static install method.
+	 *
+	 * @param tableView The TableView to manage.
+	 */
+	private TableViewColumnResizer(TableView<T> tableView) {
+		this.tableView = Objects.requireNonNull(tableView, "TableView cannot be null.");
 
-    private void detachListeners() {
-        tableView.widthProperty().removeListener(widthListener);
-        tableView.getVisibleLeafColumns().removeListener(visibleColumnsListener);
-        detachScrollBarListeners();
-        listenersAttached = false;
-         if (isLoggingEnabled && log.isDebugEnabled()) log.debug("TableViewColumnResizer listeners detached.");
-    }
+		// Initialize debounce timer
+		this.resizeDebounceTimer = new PauseTransition(RESIZE_DEBOUNCE_DELAY);
+		this.resizeDebounceTimer.setOnFinished(event -> resizeColumnsInternal());
 
-    private void findAndAttachScrollBarListeners() {
-        if (verticalScrollBar == null) { findVerticalScrollBar(); }
+		// --- Define listeners as member variables ---
+		this.widthListener = (obs, ov, nv) -> resizeDebounceTimer.playFromStart();
 
-        if (verticalScrollBar != null) {
-            attachScrollBarListeners(); // Handles the 'listenersAttached' flag
-        }
-        // No specific logging here, attachScrollBarListeners logs if it proceeds
-    }
+		this.visibleColumnsListener = c -> {
+			boolean changeRequiresResize = false;
+			while (c.next()) {
+				if (c.wasAdded() || c.wasRemoved() || c.wasUpdated()) {
+					changeRequiresResize = true;
+					break;
+				}
+			}
+			if (changeRequiresResize) {
+				log.debug("Visible columns changed. Triggering instant resize."); // fine -> debug
+				resizeDebounceTimer.stop();
+				resizeColumnsInternal();
+			}
+		};
 
-    private void attachScrollBarListeners() {
-        if (verticalScrollBar == null || listenersAttached) { return; }
+		// Listener to attach/detach based on scene presence
+		this.sceneListener = (obs, oldScene, newScene) -> {
+			if (oldScene != null) {
+				log.debug("TableView removed from scene. Detaching listeners."); // fine -> debug
+				detachListeners();
+			}
+			if (newScene != null) {
+				log.debug("TableView added to scene. Attaching listeners."); // fine -> debug
+				// Attempt to find scrollbar immediately when added to scene
+				findVerticalScrollBar();
+				attachListeners();
+				// Trigger an initial resize check shortly after being added to scene
+				// Using Platform.runLater defers it slightly after scene setup
+				Platform.runLater(this::resizeColumnsInternal);
+			}
+		};
 
-         if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Attaching listeners to vertical scrollbar.");
+		// --- Initial setup ---
+		// Check if already in scene, if so, attach listeners immediately
+		if (tableView.getScene() != null) {
+			log.debug("TableView already in scene during construction. Attaching listeners."); // fine -> debug
+			findVerticalScrollBar(); // Find scrollbar now
+			attachListeners();
+			// Trigger initial resize check deferred
+			Platform.runLater(this::resizeColumnsInternal);
+		}
+		// Always add the scene listener to handle future changes
+		tableView.sceneProperty().addListener(this.sceneListener);
+	}
 
-        scrollbarVisibleListener = (obs_vis, ov_vis, nv_vis) -> {
-            if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Scrollbar visibility changed: {} -> {}. Triggering resize.", ov_vis, nv_vis);
-            resizeDebounceTimer.stop();
-            resizeColumnsInternal();
-        };
+	/**
+	 * Attaches the necessary listeners to the TableView and its potential ScrollBar. Ensures listeners are only attached once.
+	 */
+	private void attachListeners() {
+		// Attach listeners to TableView if not already attached via scene listener logic
+		// (Technically redundant if scene listener logic works perfectly, but safe)
+		tableView.widthProperty().removeListener(widthListener); // Remove first to be safe
+		tableView.widthProperty().addListener(widthListener);
 
-        scrollbarWidthListener = (obs_w, ov_w, nv_w) -> {
-            // Check level before potentially expensive calculation/string formatting
-            if (isLoggingEnabled && log.isDebugEnabled()) {
-                 if (verticalScrollBar.isVisible() && Math.abs(ov_w.doubleValue() - nv_w.doubleValue()) > 0.1) {
-                     log.debug("Scrollbar width changed: {} -> {}. Triggering resize.", ov_w, nv_w);
-                     resizeDebounceTimer.stop();
-                     resizeColumnsInternal();
-                 }
-            } else if(verticalScrollBar.isVisible() && Math.abs(ov_w.doubleValue() - nv_w.doubleValue()) > 0.1) {
-                 // Still trigger resize even if debug logging is off
-                 resizeDebounceTimer.stop();
-                 resizeColumnsInternal();
-            }
-        };
+		tableView.getVisibleLeafColumns().removeListener(visibleColumnsListener); // Remove first
+		tableView.getVisibleLeafColumns().addListener(visibleColumnsListener);
 
-        verticalScrollBar.visibleProperty().addListener(scrollbarVisibleListener);
-        verticalScrollBar.widthProperty().addListener(scrollbarWidthListener);
-        listenersAttached = true;
-         if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Listeners successfully attached to vertical scrollbar.");
-    }
+		// Try to attach scrollbar listeners
+		attachScrollBarListeners();
+	}
 
-    private void detachScrollBarListeners() {
-        if (verticalScrollBar != null && listenersAttached) {
-            if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Detaching listeners from vertical scrollbar.");
-            if (scrollbarVisibleListener != null) { verticalScrollBar.visibleProperty().removeListener(scrollbarVisibleListener); scrollbarVisibleListener = null; }
-            if (scrollbarWidthListener != null) { verticalScrollBar.widthProperty().removeListener(scrollbarWidthListener); scrollbarWidthListener = null; }
-            // listenersAttached reset in detachListeners()
-        }
-    }
+	/**
+	 * Detaches listeners from the TableView and ScrollBar to prevent memory leaks when the TableView is removed from the scene.
+	 */
+	private void detachListeners() {
+		tableView.widthProperty().removeListener(widthListener);
+		tableView.getVisibleLeafColumns().removeListener(visibleColumnsListener);
+		detachScrollBarListeners();
+		listenersAttached = false; // Reset scrollbar listener flag
+		log.debug("TableViewColumnResizer listeners detached."); // fine -> debug
+	}
 
-    private void findVerticalScrollBar() {
-        if (verticalScrollBar != null) return;
-        try {
-            for (Node n : tableView.lookupAll(".scroll-bar")) {
-                if (n instanceof ScrollBar bar && bar.getOrientation() == Orientation.VERTICAL) {
-                    this.verticalScrollBar = bar;
-                     if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Vertical scrollbar instance found via lookup.");
-                    return;
+	/**
+	 * Finds the vertical scrollbar and attaches listeners if found and not already attached. This might be called multiple times (e.g., initially, after layout pass).
+	 */
+	private void findAndAttachScrollBarListeners() {
+		if (verticalScrollBar == null) {
+			findVerticalScrollBar();
+		}
+		if (verticalScrollBar != null) {
+			attachScrollBarListeners(); // This method now handles the 'listenersAttached' flag
+		} else {
+			// If not found now, the needsLayout listener (if added) might try later
+			// Or rely on the next resizeColumnsInternal call to try findVerticalScrollBar again.
+		}
+	}
+
+	/**
+	 * Attaches listeners to the found vertical scrollbar, if not already attached.
+	 */
+	private void attachScrollBarListeners() {
+		if (verticalScrollBar == null || listenersAttached) {
+			return; // Nothing to attach to or already attached
+		}
+
+		log.debug("Attaching listeners to vertical scrollbar."); // fine -> debug
+
+		// Define scrollbar listeners here (or use pre-defined fields if preferred)
+		scrollbarVisibleListener = (obs_vis, ov_vis, nv_vis) -> {
+			log.debug("Scrollbar visibility changed: {} -> {}. Triggering resize.", ov_vis, nv_vis); // fine -> debug, use {}
+			resizeDebounceTimer.stop();
+			resizeColumnsInternal();
+		};
+
+		scrollbarWidthListener = (obs_w, ov_w, nv_w) -> {
+			if (verticalScrollBar.isVisible() && Math.abs(ov_w.doubleValue() - nv_w.doubleValue()) > 0.1) {
+				log.debug("Scrollbar width changed: {} -> {}. Triggering resize.", ov_w, nv_w); // fine -> debug, use {}
+				resizeDebounceTimer.stop();
+				resizeColumnsInternal();
+			}
+		};
+
+		// Add the listeners
+		verticalScrollBar.visibleProperty().addListener(scrollbarVisibleListener);
+		verticalScrollBar.widthProperty().addListener(scrollbarWidthListener);
+
+		listenersAttached = true; // Mark as attached
+	}
+
+	/**
+	 * Detaches listeners from the vertical scrollbar, if they were previously attached.
+	 */
+	private void detachScrollBarListeners() {
+		if (verticalScrollBar != null && listenersAttached) {
+			log.debug("Detaching listeners from vertical scrollbar."); // fine -> debug
+			if (scrollbarVisibleListener != null) {
+				verticalScrollBar.visibleProperty().removeListener(scrollbarVisibleListener);
+			}
+			if (scrollbarWidthListener != null) {
+				verticalScrollBar.widthProperty().removeListener(scrollbarWidthListener);
+			}
+			// Reset for potential re-attachment later if scene changes
+			scrollbarVisibleListener = null;
+			scrollbarWidthListener = null;
+			// listenersAttached flag is reset in detachListeners()
+		}
+	}
+
+	/** Performs the lookup for the vertical scrollbar node. */
+	private void findVerticalScrollBar() {
+		if (verticalScrollBar != null)
+			return;
+		try {
+			for (Node n : tableView.lookupAll(".scroll-bar")) {
+				if (n instanceof ScrollBar bar && bar.getOrientation() == Orientation.VERTICAL) {
+					this.verticalScrollBar = bar;
+					log.debug("Vertical scrollbar instance found via lookup."); // fine -> debug
+					return;
+				}
+			}
+		} catch (Exception e) {
+			// Log the exception itself
+			log.error("Error during scrollbar lookup.", e);
+		}
+	}
+
+	/** Core resizing logic. */
+	private void resizeColumnsInternal() {
+		if (isResizingInternally)
+			return;
+		if (tableView.getScene() == null || !tableView.isVisible() || tableView.getWidth() <= 0 || tableView.getHeight() <= 0)
+			return;
+
+		isResizingInternally = true;
+		try {
+			findAndAttachScrollBarListeners();
+
+			ObservableList<? extends TableColumn<T, ?>> visibleColumns = tableView.getVisibleLeafColumns();
+			if (visibleColumns.isEmpty()) {
+				log.debug("No visible columns."); // fine -> debug
+				return;
+			}
+
+			// Calculate available space
+			double tableWidth = tableView.getWidth();
+			Insets tableInsets = tableView.getInsets();
+			double horizontalPadding = tableInsets.getLeft() + tableInsets.getRight() + HORIZONTAL_PADDING_BUFFER;
+			double effectiveScrollBarWidth = 0;
+			if (verticalScrollBar != null && verticalScrollBar.isVisible()) {
+				double currentWidth = verticalScrollBar.getWidth();
+				double preferredWidth = verticalScrollBar.getPrefWidth();
+				log.debug("Resize check: Scrollbar IS VISIBLE. Width={}, PrefWidth={}", currentWidth, preferredWidth); // fine -> debug, use {}
+				if (currentWidth > 0) {
+					effectiveScrollBarWidth = currentWidth;
+				} else if (preferredWidth > 0) {
+					effectiveScrollBarWidth = preferredWidth;
+					log.warn("Using prefWidth fallback for scrollbar width."); // Keep warn
+				} else {
+					effectiveScrollBarWidth = DEFAULT_SCROLLBAR_WIDTH_FALLBACK;
+					log.warn("Cannot determine scrollbar width. Using default fallback: {}", DEFAULT_SCROLLBAR_WIDTH_FALLBACK); // Keep warn, use {}
+				}
+			} else {
+				log.debug("Resize check: Scrollbar not visible or null."); // fine -> debug
+				effectiveScrollBarWidth = 0;
+			}
+
+			double availableWidth = tableWidth - horizontalPadding - effectiveScrollBarWidth;
+			if (availableWidth <= 1) {
+				log.warn("Available width ({}) too small.", availableWidth); // Keep warn, use {}
+				return;
+			}
+
+			log.debug("Resizing with AvailableWidth: {}", availableWidth); // fine -> debug, use {}
+
+			// Use the calculation method with integer rounding
+			List<Double> newPrefWidths = calculateNewWidthsAsIntegers(visibleColumns, availableWidth);
+
+			// Apply the calculated widths
+			applyNewWidths(visibleColumns, newPrefWidths);
+
+			log.debug("ResizeInternal finished."); // fine -> debug
+
+		} catch (Exception e) {
+			// Log the error message and potentially the exception if needed for more detail elsewhere
+			log.warn("Error during internal column resizing: {}", e.getMessage()); // Keep warn, use {}
+            // For more detail, you could use: log.warn("Error during internal column resizing.", e);
+		} finally {
+			isResizingInternally = false;
+		}
+	}
+
+	/**
+	 * Calculates the ideal proportional preferred widths as doubles based on available space and column constraints. This logic is used as input for the integer rounding method.
+	 *
+	 * @param visibleColumns          The list of columns currently visible.
+	 * @param availableWidth          The total horizontal space available for all columns.
+	 * @param totalMinWidth           The sum of minimum widths of all visible columns.
+	 * @param totalPrefWidth          The sum of preferred widths of all visible columns.
+	 * @param hasInfiniteMaxWidth     Flag indicating if at least one column has Double.MAX_VALUE maxWidth.
+	 * @param infiniteMaxWidthColumns Count of columns with Double.MAX_VALUE maxWidth.
+	 * @return A list containing the calculated ideal preferred width (as double) for each visible column.
+	 */
+	private List<Double> calculateProportionalWidths(ObservableList<? extends TableColumn<T, ?>> visibleColumns, double availableWidth, double totalMinWidth, double totalPrefWidth,
+	        boolean hasInfiniteMaxWidth, int infiniteMaxWidthColumns) {
+		List<Double> idealWidths = new ArrayList<>(visibleColumns.size());
+		int columnCount = visibleColumns.size();
+		if (columnCount == 0)
+			return idealWidths; // Return empty list if no columns
+
+		// --- Distribution Logic ---
+		if (availableWidth < totalMinWidth) {
+			// Case 1: Not enough space for min widths
+			// Note: Logging moved to the calling method (calculateNewWidthsAsIntegers)
+			for (TableColumn<T, ?> col : visibleColumns) {
+				idealWidths.add(col.getMinWidth());
+			}
+		} else if (Math.abs(availableWidth - totalPrefWidth) < 0.5) {
+			// Case 2: Perfect fit (or close enough)
+			// Note: Logging moved to the calling method
+			for (TableColumn<T, ?> col : visibleColumns) {
+				idealWidths.add(clamp(col.getPrefWidth(), col.getMinWidth(), col.getMaxWidth()));
+			}
+		} else if (availableWidth > totalPrefWidth) {
+			// Case 3: Expand columns
+			double extraSpace = availableWidth - totalPrefWidth;
+			double totalGrowPotential = 0;
+			// Calculate total grow potential
+			for (TableColumn<T, ?> col : visibleColumns) {
+				double potential = col.getMaxWidth() - col.getPrefWidth();
+				if (potential > 1e-6) { // Can this column grow?
+					if (col.getMaxWidth() == Double.MAX_VALUE) {
+						totalGrowPotential += Math.max(1.0, col.getPrefWidth()); // Base potential on prefWidth for infinite
+					} else {
+						totalGrowPotential += potential;
+					}
+				}
+			}
+
+			if (totalGrowPotential < 1e-6) { // No growth possible
+				// Note: Logging moved to the calling method
+				for (TableColumn<T, ?> col : visibleColumns) {
+					idealWidths.add(clamp(col.getPrefWidth(), col.getMinWidth(), col.getMaxWidth()));
+				}
+			} else { // Distribute extra space
+				// Note: Logging moved to the calling method
+				List<Double> initialCalculatedWidths = new ArrayList<>(columnCount);
+				// First pass distribution
+				for (TableColumn<T, ?> col : visibleColumns) {
+					double currentPref = col.getPrefWidth();
+					double colMaxWidth = col.getMaxWidth();
+					double growPotential = colMaxWidth - currentPref;
+					double widthToAdd = 0;
+					if (growPotential > 1e-6) {
+						double colPotentialRatio;
+						if (colMaxWidth == Double.MAX_VALUE) {
+							colPotentialRatio = Math.max(1.0, currentPref) / totalGrowPotential;
+						} else {
+							colPotentialRatio = growPotential / totalGrowPotential;
+						}
+						widthToAdd = extraSpace * colPotentialRatio;
+					}
+					initialCalculatedWidths.add(clamp(currentPref + widthToAdd, col.getMinWidth(), colMaxWidth));
+				}
+				// Second pass redistribution for remaining space after clamping
+				double usedSpace = 0;
+				for (int i = 0; i < columnCount; i++) {
+					// Correct calculation: Difference between initial calculated and original preferred width
+                    usedSpace += Math.max(0, initialCalculatedWidths.get(i) - visibleColumns.get(i).getPrefWidth());
                 }
+
+                // Calculate remaining extra space more accurately
+				double distributedSpace = 0;
+                for (int i = 0; i < columnCount; i++) {
+                    distributedSpace += initialCalculatedWidths.get(i);
+                }
+				double remainingExtraSpace = availableWidth - distributedSpace; // Compare allocated space with target
+
+				// Redistribute only significant positive remaining space
+				if (remainingExtraSpace > 0.5 && hasInfiniteMaxWidth) {
+				    log.debug("Redistributing remaining {} px among infinite columns.", String.format("%.2f", remainingExtraSpace)); // fine -> debug
+					double infiniteTotalInitialWidth = 0;
+					for (int i = 0; i < columnCount; i++) {
+						if (visibleColumns.get(i).getMaxWidth() == Double.MAX_VALUE && initialCalculatedWidths.get(i) < Double.MAX_VALUE) { // Check it wasn't clamped to max already
+                            infiniteTotalInitialWidth += initialCalculatedWidths.get(i);
+						}
+					}
+					if (infiniteTotalInitialWidth > 0) { // Distribute proportionally
+						for (int i = 0; i < columnCount; i++) {
+							TableColumn<T, ?> col = visibleColumns.get(i);
+							// Check if it's an infinite column and wasn't already clamped
+							if (col.getMaxWidth() == Double.MAX_VALUE && initialCalculatedWidths.get(i) < Double.MAX_VALUE) {
+								double c = initialCalculatedWidths.get(i);
+								double p = c / infiniteTotalInitialWidth;
+								initialCalculatedWidths.set(i, clamp(c + (remainingExtraSpace * p), col.getMinWidth(), Double.MAX_VALUE));
+							}
+						}
+					} else if (infiniteMaxWidthColumns > 0) { // Distribute equally (fallback) if proportional base is zero
+                        int eligibleInfiniteColumns = 0;
+                        for (int i = 0; i < columnCount; i++) {
+                            if (visibleColumns.get(i).getMaxWidth() == Double.MAX_VALUE && initialCalculatedWidths.get(i) < Double.MAX_VALUE) {
+                                eligibleInfiniteColumns++;
+                            }
+                        }
+                        if (eligibleInfiniteColumns > 0) {
+                            double s = remainingExtraSpace / eligibleInfiniteColumns;
+                            for (int i = 0; i < columnCount; i++) {
+                                TableColumn<T, ?> col = visibleColumns.get(i);
+                                if (col.getMaxWidth() == Double.MAX_VALUE && initialCalculatedWidths.get(i) < Double.MAX_VALUE) {
+                                    initialCalculatedWidths.set(i, clamp(initialCalculatedWidths.get(i) + s, col.getMinWidth(), Double.MAX_VALUE));
+                                }
+                            }
+                        }
+					}
+				}
+				// Assign results to idealWidths list
+				idealWidths.addAll(initialCalculatedWidths);
+			}
+		} else {
+			// Case 4: Shrink columns
+			double deficitSpace = totalPrefWidth - availableWidth;
+			double totalShrinkPotential = 0;
+			// Calculate total shrink potential
+			for (TableColumn<T, ?> col : visibleColumns) {
+				double potential = col.getPrefWidth() - col.getMinWidth();
+				if (potential > 1e-6) { // Can this column shrink?
+					totalShrinkPotential += potential;
+				}
+			}
+
+			if (totalShrinkPotential < 1e-6) { // No shrink possible
+				// Note: Logging moved to the calling method
+				for (TableColumn<T, ?> col : visibleColumns) {
+					idealWidths.add(clamp(col.getPrefWidth(), col.getMinWidth(), col.getMaxWidth()));
+				}
+			} else { // Distribute deficit
+				// Note: Logging moved to the calling method
+				for (TableColumn<T, ?> col : visibleColumns) {
+					double currentPref = col.getPrefWidth();
+					double colMinWidth = col.getMinWidth();
+					double shrinkPotential = currentPref - colMinWidth;
+					double widthToRemove = 0;
+					if (shrinkPotential > 1e-6) {
+						double proportion = shrinkPotential / totalShrinkPotential;
+						widthToRemove = deficitSpace * proportion;
+					}
+					idealWidths.add(clamp(currentPref - widthToRemove, colMinWidth, col.getMaxWidth()));
+				}
+			}
+		}
+		return idealWidths; // Return the list of calculated ideal double widths
+	}
+
+	/** Calculates widths rounding to integers, adjusting last column. */
+	private List<Double> calculateNewWidthsAsIntegers(ObservableList<? extends TableColumn<T, ?>> visibleColumns, double availableWidth) {
+		int columnCount = visibleColumns.size();
+		List<Double> finalWidths = new ArrayList<>(Collections.nCopies(columnCount, 0.0));
+		if (columnCount == 0)
+			return finalWidths;
+
+		// Calculate ideal double widths first
+		double totalMinWidth = 0, totalPrefWidth = 0;
+		boolean hasInfiniteMaxWidth = false;
+		int infiniteMaxWidthColumns = 0;
+		for (TableColumn<T, ?> col : visibleColumns) { /* Calculate totals */
+			totalMinWidth += col.getMinWidth();
+			totalPrefWidth += col.getPrefWidth();
+			if (col.getMaxWidth() == Double.MAX_VALUE) {
+				hasInfiniteMaxWidth = true;
+				infiniteMaxWidthColumns++;
+			}
+		}
+		List<Double> idealDoubleWidths = calculateProportionalWidths(visibleColumns, availableWidth, totalMinWidth, totalPrefWidth, hasInfiniteMaxWidth, infiniteMaxWidthColumns);
+
+		// Round values and calculate remainder
+		long roundedSumOthers = 0;
+		int lastIndex = columnCount - 1;
+
+		for (int i = 0; i < lastIndex; i++) {
+			TableColumn<T, ?> col = visibleColumns.get(i);
+			long roundedWidth = Math.round(idealDoubleWidths.get(i));
+			// Ensure min/max constraints AFTER rounding
+			roundedWidth = Math.max(roundedWidth, (long) Math.ceil(col.getMinWidth()));
+			if (col.getMaxWidth() != Double.MAX_VALUE) {
+				roundedWidth = Math.min(roundedWidth, (long) Math.floor(col.getMaxWidth()));
+			}
+			finalWidths.set(i, (double) roundedWidth);
+			roundedSumOthers += roundedWidth;
+		}
+
+		long targetTotalWidth = (long) Math.floor(availableWidth); // Target the integer floor
+		long remainingForLast = targetTotalWidth - roundedSumOthers;
+
+		// Handle last column
+		if (lastIndex >= 0) { // Ensure there is at least one column
+			TableColumn<T, ?> lastCol = visibleColumns.get(lastIndex);
+			long lastColMinWidth = (long) Math.ceil(lastCol.getMinWidth());
+			long lastColMaxWidth = (lastCol.getMaxWidth() == Double.MAX_VALUE) ? Long.MAX_VALUE : (long) Math.floor(lastCol.getMaxWidth());
+
+			// Calculate ideal width for last column based on remainder, then clamp
+			long lastColFinalIntWidth = Math.max(lastColMinWidth, Math.min(remainingForLast, lastColMaxWidth));
+
+            // Handle potential negative remaining space if previous columns were pushed up by minWidths
+            if (remainingForLast < lastColMinWidth) {
+                lastColFinalIntWidth = lastColMinWidth; // Must respect minWidth
+                // Optional: Log this scenario if it's helpful
+                 log.debug("Remaining space ({}) for last column is less than its minWidth ({}), clamping to minWidth.", remainingForLast, lastColMinWidth);
             }
-        } catch (Exception e) { if (isLoggingEnabled) log.error("Error during scrollbar lookup.", e); }
-    }
 
-    /** Forces resize. Generally not needed. */
-    public void forceResizeColumns() {
-         if (isLoggingEnabled && log.isDebugEnabled()) log.debug("forceResizeColumns() called externally.");
-        resizeDebounceTimer.stop();
-        resizeColumnsInternal();
-    }
+            finalWidths.set(lastIndex, (double) lastColFinalIntWidth);
 
-    /** Core resizing logic. */
-    private void resizeColumnsInternal() {
-        if (isResizingInternally) return;
-        if (tableView.getScene() == null || !tableView.isVisible() || tableView.getWidth() <= 0 || tableView.getHeight() <= 0) { return; }
-
-        isResizingInternally = true;
-        try {
-            findAndAttachScrollBarListeners(); // Ensure listeners are attached
-
-            ObservableList<? extends TableColumn<T, ?>> visibleColumns = tableView.getVisibleLeafColumns();
-            if (visibleColumns.isEmpty()) { if (isLoggingEnabled && log.isDebugEnabled()) log.debug("No visible columns."); return; }
-
-            // Calculate available space
-            double tableWidth = tableView.getWidth();
-            Insets tableInsets = tableView.getInsets();
-            double horizontalPadding = tableInsets.getLeft() + tableInsets.getRight() + HORIZONTAL_PADDING_BUFFER;
-
-            double effectiveScrollBarWidth = 0;
-            if (verticalScrollBar != null && verticalScrollBar.isVisible()) {
-                double currentWidth = verticalScrollBar.getWidth();
-                double preferredWidth = verticalScrollBar.getPrefWidth();
-                 if (isLoggingEnabled && log.isTraceEnabled()) log.trace("Resize check: Scrollbar IS VISIBLE. Width={}, PrefWidth={}", currentWidth, preferredWidth);
-                if (currentWidth > 0) { effectiveScrollBarWidth = currentWidth; }
-                else if (preferredWidth > 0) { effectiveScrollBarWidth = preferredWidth; if (isLoggingEnabled) log.warn("Using prefWidth fallback for scrollbar width."); }
-                else { effectiveScrollBarWidth = DEFAULT_SCROLLBAR_WIDTH_FALLBACK; if (isLoggingEnabled) log.error("Cannot determine scrollbar width. Using default fallback: {}", DEFAULT_SCROLLBAR_WIDTH_FALLBACK); }
-            } else {
-                 if (isLoggingEnabled && log.isTraceEnabled()) log.trace("Resize check: Scrollbar not visible or null.");
-                effectiveScrollBarWidth = 0;
-            }
-
-            double availableWidth = tableWidth - horizontalPadding - effectiveScrollBarWidth;
-            if (availableWidth <= 1) { if (isLoggingEnabled) log.warn("Available width ({}) too small.", availableWidth); return; }
-             if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Resizing with AvailableWidth: {}", availableWidth);
-
-            // Calculate totals
-            double totalMinWidth = 0, totalPrefWidth = 0;
-            boolean hasInfiniteMaxWidth = false; int infiniteMaxWidthColumns = 0;
-            for (TableColumn<T, ?> col : visibleColumns) {
-                totalMinWidth += col.getMinWidth();
-                totalPrefWidth += col.getPrefWidth();
-                if (col.getMaxWidth() == Double.MAX_VALUE) { hasInfiniteMaxWidth = true; infiniteMaxWidthColumns++; }
-            }
-
-            // Distribution Logic
-            List<Double> newPrefWidths = calculateNewWidths(visibleColumns, availableWidth, totalMinWidth, totalPrefWidth, hasInfiniteMaxWidth, infiniteMaxWidthColumns);
-
-            // Apply new preferred widths
-            applyNewWidths(visibleColumns, newPrefWidths);
-
-             if (isLoggingEnabled && log.isDebugEnabled()) log.debug("ResizeInternal finished.");
-
-        } catch (Exception e) {
-            if (isLoggingEnabled) log.error("Error during internal column resizing", e);
-        } finally {
-            isResizingInternally = false;
+			// Final check logging - only perform sum if debug is enabled
+			if (log.isDebugEnabled()) { // Replaced if(isLoggingEnabled)
+				long finalSum = 0;
+				for (Double w : finalWidths) {
+					finalSum += Math.round(w); // Calculation only if debug enabled
+				}
+				// Use SLF4J placeholders
+				log.debug("Integer Calculation: TargetWidth={}, SumOthers={}, Remainder={}, LastColFinal={}, FinalSum={}",
+				          targetTotalWidth, roundedSumOthers, remainingForLast, lastColFinalIntWidth, finalSum);
+				if (finalSum > targetTotalWidth && Math.abs(finalSum - targetTotalWidth) > 1) { // Allow small rounding diffs
+					log.warn("Final integer sum ({}) exceeds target ({}), likely due to minWidth constraints.", finalSum, targetTotalWidth);
+				} else if (finalSum < targetTotalWidth && columnCount > 0 && Math.abs(visibleColumns.get(lastIndex).getMaxWidth() - lastColFinalIntWidth) < 0.01 && lastCol.getMaxWidth() != Double.MAX_VALUE) {
+                    // Check if last column was clamped by its own maxWidth
+					log.warn("Final integer sum ({}) < target ({}), likely due to last column's maxWidth ({}) constraint.", finalSum, targetTotalWidth, lastColMaxWidth);
+				}
+                // Consider adding a check if the sum is less than the target without the last column being maxed out (could indicate an issue)
+                else if (finalSum < targetTotalWidth && (lastCol.getMaxWidth() == Double.MAX_VALUE || Math.abs(lastColFinalIntWidth - lastColMaxWidth) > 1) ) {
+                     log.debug("Final integer sum ({}) < target ({}) - possible rounding effects or remaining space couldn't be fully allocated.", finalSum, targetTotalWidth);
+                }
+			}
+		} else {
+             log.debug("No columns to process in integer width calculation.");
         }
-    }
 
-    /** Calculates new widths (Extracted logic). */
-    private List<Double> calculateNewWidths(ObservableList<? extends TableColumn<T, ?>> visibleColumns, double availableWidth, double totalMinWidth, double totalPrefWidth, boolean hasInfiniteMaxWidth, int infiniteMaxWidthColumns) {
-        List<Double> newPrefWidths = new ArrayList<>(visibleColumns.size());
-         if (availableWidth < totalMinWidth) {
-             if (isLoggingEnabled) log.warn("Available width < total min width. Setting columns to minWidth.");
-             for (TableColumn<T, ?> col : visibleColumns) newPrefWidths.add(col.getMinWidth());
-         } else if (Math.abs(availableWidth - totalPrefWidth) < 0.5) {
-             if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Available width matches total pref width. Using current prefWidths (clamped).");
-             for (TableColumn<T, ?> col : visibleColumns) newPrefWidths.add(clamp(col.getPrefWidth(), col.getMinWidth(), col.getMaxWidth()));
-         } else if (availableWidth > totalPrefWidth) {
-             // Expand logic
-             double extraSpace = availableWidth - totalPrefWidth;
-              if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Expanding columns with extra space: {}", extraSpace);
-             double totalGrowPotential = 0;
-             for (TableColumn<T, ?> col : visibleColumns) { double p = col.getMaxWidth() - col.getPrefWidth(); if (p > 1e-6) { if (col.getMaxWidth() == Double.MAX_VALUE) totalGrowPotential += Math.max(1.0, col.getPrefWidth()); else totalGrowPotential += p; } }
-             if (totalGrowPotential < 1e-6) {
-                 if (isLoggingEnabled && log.isDebugEnabled()) log.debug("No columns can grow further.");
-                 for (TableColumn<T, ?> col : visibleColumns) newPrefWidths.add(clamp(col.getPrefWidth(), col.getMinWidth(), col.getMaxWidth()));
-             } else {
-                 if (isLoggingEnabled && log.isTraceEnabled()) log.trace("Total grow potential: {}", totalGrowPotential);
-                 List<Double> initialCalculatedWidths = new ArrayList<>(visibleColumns.size());
-                 for (TableColumn<T, ?> col : visibleColumns) { double c = col.getPrefWidth(); double m = col.getMaxWidth(); double g = m - c; double w = 0; if (g > 1e-6) { double r; if (m == Double.MAX_VALUE) r = Math.max(1.0, c) / totalGrowPotential; else r = g / totalGrowPotential; w = extraSpace * r; } initialCalculatedWidths.add(clamp(c + w, col.getMinWidth(), m)); }
-                 double usedSpace = 0; for(int i=0; i<visibleColumns.size(); i++) { usedSpace += (initialCalculatedWidths.get(i) - visibleColumns.get(i).getPrefWidth()); } double remainingExtraSpace = extraSpace - usedSpace;
-                 if (remainingExtraSpace > 0.5 && hasInfiniteMaxWidth) { if (isLoggingEnabled && log.isTraceEnabled()) log.trace("Redistributing remaining space: {}", remainingExtraSpace); /* Redistribute logic */ }
-                 newPrefWidths.addAll(initialCalculatedWidths);
-             }
-         } else {
-             // Shrink logic
-             double deficitSpace = totalPrefWidth - availableWidth;
-              if (isLoggingEnabled && log.isDebugEnabled()) log.debug("Shrinking columns with deficit space: {}", deficitSpace);
-             double totalShrinkPotential = 0;
-             for (TableColumn<T, ?> col : visibleColumns) { double p = col.getPrefWidth() - col.getMinWidth(); if (p > 1e-6) totalShrinkPotential += p; }
-             if (totalShrinkPotential < 1e-6) {
-                 if (isLoggingEnabled && log.isDebugEnabled()) log.debug("No columns can shrink further.");
-                 for (TableColumn<T, ?> col : visibleColumns) newPrefWidths.add(clamp(col.getPrefWidth(), col.getMinWidth(), col.getMaxWidth()));
-             } else {
-                 if (isLoggingEnabled && log.isTraceEnabled()) log.trace("Total shrink potential: {}", totalShrinkPotential);
-                 for (TableColumn<T, ?> col : visibleColumns) { double c = col.getPrefWidth(); double m = col.getMinWidth(); double s = c - m; double w = 0; if (s > 1e-6) { double p = s / totalShrinkPotential; w = deficitSpace * p; } newPrefWidths.add(clamp(c - w, m, col.getMaxWidth())); }
-             }
-         }
-        return newPrefWidths;
-    }
+		return finalWidths;
+	}
 
-    /** Applies new widths. */
-    private void applyNewWidths(ObservableList<? extends TableColumn<T, ?>> visibleColumns, List<Double> newPrefWidths) {
-         double appliedTotalWidth = 0;
-         for (int i = 0; i < visibleColumns.size(); i++) {
-             TableColumn<T, ?> col = visibleColumns.get(i);
-             double newPrefWidth = newPrefWidths.get(i);
-             if (Math.abs(col.getPrefWidth() - newPrefWidth) > 0.5) {
-                 col.setPrefWidth(newPrefWidth);
-             }
-             appliedTotalWidth += newPrefWidth;
-         }
-          if (isLoggingEnabled && log.isTraceEnabled()) log.trace("Applied Calculated Total PrefWidth: {}", appliedTotalWidth);
-    }
+	/**
+	 * Applies the calculated preferred widths to the visible columns.
+	 */
+	private void applyNewWidths(ObservableList<? extends TableColumn<T, ?>> visibleColumns, List<Double> newPrefWidths) {
+		double appliedTotalWidth = 0; // For logging/debugging
+		for (int i = 0; i < visibleColumns.size(); i++) {
+			TableColumn<T, ?> col = visibleColumns.get(i);
+			double newPrefWidth = newPrefWidths.get(i);
+			// Apply width only if it has changed significantly
+			if (Math.abs(col.getPrefWidth() - newPrefWidth) > 0.5) {
+				col.setPrefWidth(newPrefWidth);
+			}
+			appliedTotalWidth += col.getPrefWidth(); // Use actual prefWidth after potential set for sum
+		}
+		log.debug("Applied Calculated Total PrefWidth: {}", appliedTotalWidth); // fine -> debug, use {}
+	}
 
-    /** Clamps value. */
-    private double clamp(double value, double min, double max) {
-        if (value < min) return min;
-        if (value > max) return max;
-        return value;
-    }
+	/**
+	 * Forces an immediate recalculation and application of column widths. This stops any pending debounced resize operations from the table width listener. Useful if an external
+	 * event (e.g., programmatically changing column visibility or after manually setting table items) requires an immediate layout update.
+	 */
+	public void forceResizeColumns() {
+		log.debug("forceResizeColumns() called externally."); // fine -> debug
+		// Stop any pending actions from the width debounce timer
+		resizeDebounceTimer.stop();
+		// Execute the resize logic immediately
+		// It will internally check visibility, scrollbar state etc. at this moment.
+		resizeColumnsInternal();
+	}
+
+	/** Clamps value. */
+	private double clamp(double value, double min, double max) {
+		if (value < min)
+			return min;
+		if (value > max)
+			return max;
+		return value;
+	}
 }
