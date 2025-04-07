@@ -62,7 +62,7 @@ This resizer combines the advantages: it fills the space when possible but allow
 
 ## Configuration (Horizontal Buffer)
 
-By default, the resizer doens't subtracts a a padding (`0.0` pixels) from the available width. This buffer acts as a safety margin to compensate for things like CSS borders (`border-width`) or minor layout inaccuracies not covered by `table.getInsets()`.
+By default, the resizer doesn't subtracts a padding (`0.0` pixels) from the available width. This buffer acts as a safety margin to compensate for things like CSS borders (`border-width`) or minor layout inaccuracies not covered by `table.getInsets()`.
 
 **When to Adjust:**
 
