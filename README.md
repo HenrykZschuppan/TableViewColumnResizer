@@ -1,4 +1,4 @@
-# JavaFX TableView Column Resizer (Pixel precise)
+# JavaFX TableView Column Resizer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
