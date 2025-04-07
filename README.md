@@ -11,7 +11,7 @@ It respects column `minWidth`/`maxWidth` and correctly accounts for the vertical
 3.  **Installation:** Call the static `install` method after creating your `TableView`:
 
     ```java
-    import izon.framework.tableview.TableViewColumnResizer; // Adjust import path if needed
+    import framework.tableview.TableViewColumnResizer; // Adjust import path if needed
     import javafx.scene.control.TableView;
 
     // ... inside your controller or setup code ...
