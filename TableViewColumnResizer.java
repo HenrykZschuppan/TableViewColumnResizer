@@ -206,7 +206,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 				}
 			}
 			if (changeRequiresResize) {
-				log.debug("Visible columns changed. Triggering instant resize."); // fine -> debug
+				log.debug("Visible columns changed. Triggering instant resize.");
 				resizeDebounceTimer.stop();
 				resizeColumnsInternal();
 			}
@@ -215,11 +215,11 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 		// Listener to attach/detach based on scene presence
 		this.sceneListener = (obs, oldScene, newScene) -> {
 			if (oldScene != null) {
-				log.debug("TableView removed from scene. Detaching listeners."); // fine -> debug
+				log.debug("TableView removed from scene. Detaching listeners.");
 				detachListeners();
 			}
 			if (newScene != null) {
-				log.debug("TableView added to scene. Attaching listeners."); // fine -> debug
+				log.debug("TableView added to scene. Attaching listeners.");
 				// Attempt to find scrollbar immediately when added to scene
 				findVerticalScrollBar();
 				attachListeners();
@@ -232,7 +232,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 		// --- Initial setup ---
 		// Check if already in scene, if so, attach listeners immediately
 		if (tableView.getScene() != null) {
-			log.debug("TableView already in scene during construction. Attaching listeners."); // fine -> debug
+			log.debug("TableView already in scene during construction. Attaching listeners.");
 			findVerticalScrollBar(); // Find scrollbar now
 			attachListeners();
 			// Trigger initial resize check deferred
@@ -266,7 +266,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 		tableView.getVisibleLeafColumns().removeListener(visibleColumnsListener);
 		detachScrollBarListeners();
 		listenersAttached = false; // Reset scrollbar listener flag
-		log.debug("TableViewColumnResizer listeners detached."); // fine -> debug
+		log.debug("TableViewColumnResizer listeners detached.");
 	}
 
 	/**
@@ -292,18 +292,18 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 			return; // Nothing to attach to or already attached
 		}
 
-		log.debug("Attaching listeners to vertical scrollbar."); // fine -> debug
+		log.debug("Attaching listeners to vertical scrollbar.");
 
 		// Define scrollbar listeners here (or use pre-defined fields if preferred)
 		scrollbarVisibleListener = (obs_vis, ov_vis, nv_vis) -> {
-			log.debug("Scrollbar visibility changed: {} -> {}. Triggering resize.", ov_vis, nv_vis); // fine -> debug, use {}
+			log.debug("Scrollbar visibility changed: {} -> {}. Triggering resize.", ov_vis, nv_vis);
 			resizeDebounceTimer.stop();
 			resizeColumnsInternal();
 		};
 
 		scrollbarWidthListener = (obs_w, ov_w, nv_w) -> {
 			if (verticalScrollBar.isVisible() && Math.abs(ov_w.doubleValue() - nv_w.doubleValue()) > 0.1) {
-				log.debug("Scrollbar width changed: {} -> {}. Triggering resize.", ov_w, nv_w); // fine -> debug, use {}
+				log.debug("Scrollbar width changed: {} -> {}. Triggering resize.", ov_w, nv_w);
 				resizeDebounceTimer.stop();
 				resizeColumnsInternal();
 			}
@@ -321,7 +321,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 	 */
 	private void detachScrollBarListeners() {
 		if (verticalScrollBar != null && listenersAttached) {
-			log.debug("Detaching listeners from vertical scrollbar."); // fine -> debug
+			log.debug("Detaching listeners from vertical scrollbar.");
 			if (scrollbarVisibleListener != null) {
 				verticalScrollBar.visibleProperty().removeListener(scrollbarVisibleListener);
 			}
@@ -343,7 +343,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 			for (Node n : tableView.lookupAll(".scroll-bar")) {
 				if (n instanceof ScrollBar bar && bar.getOrientation() == Orientation.VERTICAL) {
 					this.verticalScrollBar = bar;
-					log.debug("Vertical scrollbar instance found via lookup."); // fine -> debug
+					log.debug("Vertical scrollbar instance found via lookup.");
 					return;
 				}
 			}
@@ -366,7 +366,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 
 			ObservableList<? extends TableColumn<T, ?>> visibleColumns = tableView.getVisibleLeafColumns();
 			if (visibleColumns.isEmpty()) {
-				log.debug("No visible columns."); // fine -> debug
+				log.debug("No visible columns.");
 				return;
 			}
 
@@ -378,28 +378,28 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 			if (verticalScrollBar != null && verticalScrollBar.isVisible()) {
 				double currentWidth = verticalScrollBar.getWidth();
 				double preferredWidth = verticalScrollBar.getPrefWidth();
-				log.debug("Resize check: Scrollbar IS VISIBLE. Width={}, PrefWidth={}", currentWidth, preferredWidth); // fine -> debug, use {}
+				log.debug("Resize check: Scrollbar IS VISIBLE. Width={}, PrefWidth={}", currentWidth, preferredWidth);
 				if (currentWidth > 0) {
 					effectiveScrollBarWidth = currentWidth;
 				} else if (preferredWidth > 0) {
 					effectiveScrollBarWidth = preferredWidth;
-					log.warn("Using prefWidth fallback for scrollbar width."); // Keep warn
+					log.warn("Using prefWidth fallback for scrollbar width.");
 				} else {
 					effectiveScrollBarWidth = DEFAULT_SCROLLBAR_WIDTH_FALLBACK;
-					log.warn("Cannot determine scrollbar width. Using default fallback: {}", DEFAULT_SCROLLBAR_WIDTH_FALLBACK); // Keep warn, use {}
+					log.warn("Cannot determine scrollbar width. Using default fallback: {}", DEFAULT_SCROLLBAR_WIDTH_FALLBACK);
 				}
 			} else {
-				log.debug("Resize check: Scrollbar not visible or null."); // fine -> debug
+				log.debug("Resize check: Scrollbar not visible or null.");
 				effectiveScrollBarWidth = 0;
 			}
 
 			double availableWidth = tableWidth - horizontalPadding - effectiveScrollBarWidth;
 			if (availableWidth <= 1) {
-				log.warn("Available width ({}) too small.", availableWidth); // Keep warn, use {}
+				log.warn("Available width ({}) too small.", availableWidth);
 				return;
 			}
 
-			log.debug("Resizing with AvailableWidth: {}", availableWidth); // fine -> debug, use {}
+			log.debug("Resizing with AvailableWidth: {}", availableWidth);
 
 			// Use the calculation method with integer rounding
 			List<Double> newPrefWidths = calculateNewWidthsAsIntegers(visibleColumns, availableWidth);
@@ -407,11 +407,11 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 			// Apply the calculated widths
 			applyNewWidths(visibleColumns, newPrefWidths);
 
-			log.debug("ResizeInternal finished."); // fine -> debug
+			log.debug("ResizeInternal finished.");
 
 		} catch (Exception e) {
 			// Log the error message and potentially the exception if needed for more detail elsewhere
-			log.warn("Error during internal column resizing: {}", e.getMessage()); // Keep warn, use {}
+			log.warn("Error during internal column resizing: {}", e.getMessage());
             // For more detail, you could use: log.warn("Error during internal column resizing.", e);
 		} finally {
 			isResizingInternally = false;
