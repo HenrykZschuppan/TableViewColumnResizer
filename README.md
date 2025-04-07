@@ -41,7 +41,7 @@ This resizer combines the advantages: it fills the space when possible but allow
 3.  **Apply the Resizer:** Call the static `install` method *after* creating and configuring your `TableView`:
 
     ```java
-    import izon.framework.tableview.TableViewColumnResizer; // Adjust the import path
+    import framework.tableview.TableViewColumnResizer; // Adjust the import path
     import javafx.scene.control.TableView;
     // ... other imports
 
