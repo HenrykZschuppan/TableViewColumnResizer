@@ -77,7 +77,7 @@ Install the resizer WITHOUT an additional buffer (only insets are considered)
 `TableViewColumnResizer.install(myDataTable); // equals to install(myDataTable, 0.0)`
 
 Install the resizer with a buffer of 1.0 pixel  
-`TableViewColumnResizer.install(myDataTable, 2.0);  // for border width 1px both sides`
+`TableViewColumnResizer.install(myDataTable, 2.0);  // for border width of 1px times two (both sides)`
 
 **Recommendation:** Start with the default installation (`TableViewColumnResizer.install(myDataTable);`). Only adjust the buffer if you encounter the visual issues mentioned above. `0.0` is often a good value if you precisely control borders via CSS.
 
