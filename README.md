@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A JavaFX utility that automatically resizes `TableView` columns (`TableColumn`) proportionally to fill available width, **while respecting manual column resizing by the user**.  
+A JavaFX utility that automatically resizes `TableView` columns (`TableColumn`) proportionally to fill available width, **while respecting manual column resizing by the user**.
 By accurately accounting for proportions, constraints, and the scrollbar, it achieves a visually precise layout, eliminating common issues like trailing space or unwanted squeezing.
 
 **Core Features:**
