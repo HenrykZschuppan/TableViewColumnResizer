@@ -111,7 +111,7 @@ public final class TableViewColumnResizer<T> {
     private final PauseTransition resizeDebounceTimer;
     private static final Duration RESIZE_DEBOUNCE_DELAY = Duration.millis(60);
     private static final double DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
-    private static final double HORIZONTAL_PADDING_BUFFER = 4.0;
+    private static final double HORIZONTAL_PADDING_BUFFER = 4.5;
 
     private final ChangeListener<Number> widthListener;
     private final ListChangeListener<TableColumn<T, ?>> visibleColumnsListener;
