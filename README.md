@@ -27,7 +27,7 @@ It respects column `minWidth`/`maxWidth` and correctly accounts for the vertical
     ```
 
 
-## You may want to fine tune the table header width calculation with respecting a border width
+## You may want to fine tune the table header width calculation with respecting a table border width
 
 Go into class TableViewColumnResizer<T> and set the HORIZONTAL_PADDING_BUFFER        = 0;
 // fine tune this manually, for example if border width is 1 times 2 = 2  
