@@ -25,9 +25,12 @@ It respects column `minWidth`/`maxWidth` and correctly accounts for the vertical
     // Optionally keep the instance if you need forceResizeColumns() later
     // TableViewColumnResizer<MyDataType> resizer = TableViewColumnResizer.install(myTableView);
     ```
-    
-You may want to fine tune with a border width, set the HORIZONTAL_PADDING_BUFFER        = 0;  // fine tune this manually, for example if border width is 1 times 2 = 2  
 
+
+## You may want to fine tune the table header width calculation with respecting a border width
+
+Go into class TableViewColumnResizer<T> and set the HORIZONTAL_PADDING_BUFFER        = 0;
+// fine tune this manually, for example if border width is 1 times 2 = 2  
 
 ## Public Methods
 
