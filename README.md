@@ -14,7 +14,7 @@ This JavaFX utility solves common `TableView` layout problems like trailing spac
 *   Correctly accounts for the vertical scrollbar's width when visible.
 *   Addresses the drawbacks of standard JavaFX resize policies (no empty space on the right, no content overflow below minimum width).
 *   Simple installation via a static method.
-*   Configurable buffer for fine-tuning.
+*   Configurable padding buffer for fine-tuning.
 *   Manages its own lifecycle (listeners are added/removed automatically).
 *   Uses SLF4J for optional logging.
 
