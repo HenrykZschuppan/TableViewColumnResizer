@@ -50,29 +50,50 @@ import javafx.scene.control.TableView;
 import javafx.util.Duration;
 
 /**
- * Automatically resizes the columns of a JavaFX TableView to proportionally fill the available horizontal space, while respecting column minimum and maximum widths. It correctly
- * accounts for the vertical scrollbar's width when it becomes visible. This implementation uses SLF4J for logging.
+ * Automatically resizes the columns of a JavaFX TableView to proportionally fill the available horizontal space,
+ * while respecting column minimum and maximum widths. It correctly accounts for the vertical scrollbar's width
+ * when it becomes visible and uses a configurable horizontal padding buffer for fine-tuning the available space.
+ * This implementation uses SLF4J for logging.
  * <p>
- * Use the static {@link #install(TableView)} method to attach this behavior to a TableView. This method automatically sets the TableView's column resize policy to
+ * Use the static {@link #install(TableView)} method (using a default buffer) or
+ * {@link #install(TableView, double)} (specifying a custom buffer) to attach this behavior to a TableView.
+ * These methods automatically set the TableView's column resize policy to
  * {@link TableView#UNCONSTRAINED_RESIZE_POLICY}, which is required for the resizer to function correctly.
  * <p>
- * The resizer operates automatically by listening to changes in the TableView's width, visible columns, and the vertical scrollbar's state. Due to JavaFX layout timing, there
- * might be a brief visual adjustment (flicker) upon initial display or when the scrollbar appears/disappears, as the resize calculation is triggered *after* the state change is
- * detected by the listeners.
- * <p>
- * **Efficiency Considerations:** Care has been taken in the implementation to balance accurate resizing with performance. Key efficiency measures include:
+ * **Configuration:**
  * <ul>
- * <li>Debouncing reactions to rapid table width changes to avoid excessive calculations during window resizing.</li>
- * <li>Minimizing potentially expensive operations like node lookups for the scrollbar.</li>
- * <li>Applying calculated preferred widths to columns only when a significant change (> 0.5px) is detected, reducing unnecessary layout invalidations.</li>
+ *     <li>The {@code horizontalPaddingBuffer} (provided during installation, defaulting to
+ *         {@value #DEFAULT_HORIZONTAL_PADDING_BUFFER}px) is subtracted from the available width calculation.
+ *         It serves as a safety margin or compensation for custom CSS borders/padding not fully captured
+ *         by {@code table.getInsets()}. Adjust this value if you observe consistent small gaps or
+ *         unnecessary horizontal scrollbars. See {@link #install(TableView, double)}.</li>
  * </ul>
- * The calculation logic primarily involves linear traversals of the visible columns, representing an efficient approach for typical UI scenarios where the number of columns is
- * moderate.
  * <p>
- * While the resizing is typically fully automatic, a public method {@link #forceResizeColumns()} is provided. This allows for explicitly triggering a resize calculation but is
- * **generally not necessary** due to the comprehensive automatic listeners. See the method's documentation for potential use cases.
+ * **Automatic Operation:**
+ * The resizer operates automatically by listening to changes in the TableView's width, visible columns,
+ * and the vertical scrollbar's state. Due to JavaFX layout timing, there might be a brief visual adjustment
+ * (flicker) upon initial display or when the scrollbar appears/disappears, as the resize calculation is
+ * triggered *after* the state change is detected by the listeners.
  * <p>
- * The resizer manages its own lifecycle by attaching/detaching listeners when the TableView is added to or removed from a scene to prevent memory leaks.
+ * **Efficiency Considerations:** Care has been taken in the implementation to balance accurate resizing with
+ * performance. Key efficiency measures include:
+ * <ul>
+ *     <li>Debouncing reactions to rapid table width changes to avoid excessive calculations during window resizing.</li>
+ *     <li>Minimizing potentially expensive operations like node lookups for the scrollbar.</li>
+ *     <li>Applying calculated preferred widths to columns only when a significant change (> 0.5px) is detected,
+ *         reducing unnecessary layout invalidations.</li>
+ * </ul>
+ * The calculation logic primarily involves linear traversals of the visible columns, representing an efficient
+ * approach for typical UI scenarios where the number of columns is moderate.
+ * <p>
+ * **Manual Trigger:**
+ * While the resizing is typically fully automatic, a public method {@link #forceResizeColumns()} is provided.
+ * This allows for explicitly triggering a resize calculation but is **generally not necessary** due to the
+ * comprehensive automatic listeners. See the method's documentation for potential use cases.
+ * <p>
+ * **Lifecycle Management:**
+ * The resizer manages its own lifecycle by attaching/detaching listeners when the TableView is added to
+ * or removed from a scene to prevent memory leaks.
  *
  * @param <T> The type of the items contained within the TableView.
  */
