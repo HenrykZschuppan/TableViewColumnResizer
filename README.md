@@ -96,8 +96,20 @@ Only adjust the buffer if you encounter the visual issues mentioned above.
 
 ## Public Methods
 
-*   **`static install(TableView<T> tableView)`:** Installs the resizer onto the TableView and sets the required `UNCONSTRAINED_RESIZE_POLICY`. Returns the resizer instance.
-*   **`forceResizeColumns()`:** Explicitly triggers a resize calculation. **This is generally not needed** as the resizing is handled automatically by internal listeners. It might be considered in edge cases after complex programmatic changes to the table where listeners might not immediately reflect the desired state.
+*   **`static install(TableView<T> tableView)`:**
+    Installs the resizer onto the `TableView` using the default horizontal padding buffer and sets the required `UNCONSTRAINED_RESIZE_POLICY`. Returns the resizer instance.
+
+*   **`static install(TableView<T> tableView, double horizontalPaddingBuffer)`:**
+    Installs the resizer onto the `TableView` using a *custom* horizontal padding buffer and sets the required `UNCONSTRAINED_RESIZE_POLICY`. Returns the resizer instance. See the "Configuration" section for details on the buffer.
+
+*   **`forceResizeColumns()`:**
+    (Instance method) Calling this method on the `TableViewColumnResizer` instance (obtained from `install()`) triggers an immediate recalculation and application of column widths.
+    ```java
+    TableViewColumnResizer<MyDataType> resizer = TableViewColumnResizer.install(myDataTable);
+    // ... later, after complex changes ...
+    resizer.forceResizeColumns();
+    ```
+    **This is usually NOT necessary**, as internal listeners detect changes automatically. It might be useful in rare edge cases, e.g., after complex programmatic changes to columns or data where the layout needs an immediate update.
 
 ## How it Works Internally
 
