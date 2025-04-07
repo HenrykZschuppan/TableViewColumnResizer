@@ -188,7 +188,7 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
 	 */
 	 private TableViewColumnResizer(TableView<T> tableView, double horizontalPaddingBuffer) {
         	this.tableView = Objects.requireNonNull(tableView, "TableView cannot be null.");
-        	this.horizontalPaddingBuffer = horizontalPaddingBuffer; // Store the buffer
+        	this.horizontalPaddingBuffer = horizontalPaddingBuffer;
 
 		// Initialize debounce timer
 		this.resizeDebounceTimer = new PauseTransition(RESIZE_DEBOUNCE_DELAY);
