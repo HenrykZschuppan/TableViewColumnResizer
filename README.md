@@ -1,8 +1,10 @@
-# JavaFX TableView Column Resizer
+# JavaFX TableView Column Resizer (Pixel precise)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A JavaFX utility that automatically and **proportionally** resizes the columns (`TableColumn`) of a `TableView` to fill the available horizontal width.
+A JavaFX utility that automatically and **proportionally** resizes the columns (`TableColumn`) of a `TableView` to fill the available horizontal width.  
+
+*Note: This resizer aims for a visually precise layout by accurately accounting for proportions, constraints, and the scrollbar, effectively eliminating common layout issues like trailing space or unwanted squeezing.*  
 
 **Core Features:**
 
