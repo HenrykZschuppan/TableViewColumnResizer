@@ -101,6 +101,7 @@ public final class TableViewColumnResizer<T> {
 
 // SLF4J Logger instance
 private static final Logger log = LoggerFactory.getLogger(TableViewColumnResizer.class);
+// Removed: public static boolean isLoggingEnabled = true; (Control via SLF4J config)
 
 // Default padding buffer value
 private static final double DEFAULT_HORIZONTAL_PADDING_BUFFER = 0.0;
@@ -160,7 +161,6 @@ private static final double   DEFAULT_SCROLLBAR_WIDTH_FALLBACK = 15.0;
         return resizer;
     }
 
-	// Removed: public static boolean isLoggingEnabled = true; (Control via SLF4J config)
 
 	private final TableView<T> tableView;
 	private ScrollBar          verticalScrollBar    = null;
